@@ -111,8 +111,24 @@ function extractOneMesh( mesh, facet ) {
 
     var meshFaces = new Set( mesh.geometry.faces );
 
-    var border = [];
+
     var seedMesh = [];
+    var meshes = [];
+    var border = [];
+    var vertexIdMask = [];
+
+
+    function setMask( facet ) {
+        vertexIdMask[ facet.a ] = true;
+        vertexIdMask[ facet.b ] = true;
+        vertexIdMask[ facet.c ] = true;
+    }
+
+    function isMaskIntersect( facet ) {
+        return vertexIdMask[ facet.a ] || vertexIdMask[ facet.b ] || vertexIdMask[ facet.c ];
+    }
+
+    var VisibleMesh = new THREE.Geometry();
 
     setMask( facet );
     seedMesh.push( facet );
@@ -124,6 +140,14 @@ function extractOneMesh( mesh, facet ) {
         for ( var face of meshFaces ) {
             if ( true === isMaskIntersect( face ) ) {
                 seedMesh.push( face );
+
+                VisibleMesh.vertices.push(
+                    (new THREE.Vector3()).copy( mesh.geometry.vertices[face.a])
+                    , (new THREE.Vector3()).copy( mesh.geometry.vertices[face.b])
+                    , (new THREE.Vector3()).copy( mesh.geometry.vertices[face.c])
+                );
+                var indexOffset = VisibleMesh.vertices.length*3;
+                VisibleMesh.faces.push( new THREE.Face3(indexOffset, indexOffset +1, indexOffset+2) );
                 border.push( face );
             }
         }
@@ -132,7 +156,7 @@ function extractOneMesh( mesh, facet ) {
             meshFaces.delete( border[ i ] );
         }
     }
-    return seedMesh;
+    return VisibleMesh;
     console.log( "isolated no." + ( meshes.length + 1 ) + " mesh, it has " + seedMesh.length + " faces" );
 }
 
@@ -238,7 +262,7 @@ function loadTable() {
         //meshes.sort( ( a, b ) => a.length - b.length );
 
         mesh.position.set( 0, 0, 0 );
-        mesh.rotation.set( -Math.PI / 2, 0, 0 );
+        //mesh.rotation.set( -Math.PI / 2, 0, 0 );
         //mesh.scale.set( 0.1, 0.1, 0.1 );
 
         mesh.castShadow = true;
@@ -400,6 +424,7 @@ function init() {
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2();
     container.addEventListener( 'mousemove', onMouseMove, false );
+    container.addEventListener( 'dblclick', onMouseLDClick, false );
 
     var geometry = new THREE.CylinderGeometry( 0, 0.2, 0.5, 3 );
     geometry.translate( 0, 0.2, 0 );
@@ -461,21 +486,39 @@ function render() {
 
 function onMouseMove( event ) {
 
-        mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
-        mouse.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
-        raycaster.setFromCamera( mouse, camera );
+}
 
-        // See if the ray from the camera into the world hits one of our meshes
-        var intersects = raycaster.intersectObject( table );
+function onMouseLDClick( event ) {
 
-        // Toggle rotation bool for meshes that we clicked
-        if ( intersects.length > 0 ) {
+    // Begin raycast
+    mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
+    mouse.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
+    raycaster.setFromCamera( mouse, camera );
 
-            helper.position.set( 0, 0, 0 );
-            helper.lookAt( intersects[ 0 ].face.normal );
+    // See if the ray from the camera into the world hits one of our meshes
+    var intersects = raycaster.intersectObject( table );
 
-            helper.position.copy( intersects[ 0 ].point );
+    // Toggle rotation bool for meshes that we clicked
+    if ( intersects.length > 0 ) {
 
-        }
+        //helper.position.set( 0, 0, 0 );
+        //helper.lookAt( intersects[ 0 ].face.normal );
 
+        //helper.position.copy( intersects[ 0 ].point );
+
+    }
+
+    // End raycast
+
+    var extractGeo = extractOneMesh( table, intersects[ 0 ].face );
+
+
+    for (var i in extractGeo.vertices ) {
+        var geometry = new THREE.SphereGeometry( 0.01, 32, 32 );
+        var material = new THREE.MeshNormalMaterial();
+        var sphere = new THREE.Mesh( geometry, material );
+        sphere.position.copy(extractGeo.vertices[i]);
+        scene.add( sphere );
+        sphere.rotation.set( -Math.PI / 2, 0, 0 );
+    }
 }
