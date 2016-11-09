@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>three.js webgl - STL</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body {
+            font-family: Monospace;
+            background-color: #000000;
+            margin: 0px;
+            overflow: hidden;
+        }
+
+        #info {
+            color: #fff;
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            z-index: 100;
+            display:block;
+
+        }
+
+        a { color: skyblue }
+        .button { background:#999; color:#eee; padding:0.2em 0.5em; cursor:pointer }
+        .highlight { background:orange; color:#fff; }
+
+        span {
+            display: inline-block;
+            width: 60px;
+            float: left;
+            text-align: center;
+        }
+
+    </style>
+</head>
+<body>
+<div id="info">
+    <p><a href="">NeZha's web</a>
+    </p>
+</div>
+<div id="stats-output"></div>
+<div id="webgl-output"></div>
+<div id="loading">Loading... please wait...</div>
+
+<script style="text/javascript" src="../../libs/js/Detector.js"></script>
+<script>
+    if ( !Detector.webgl )
+    {
+        document.getElementById("loading").style.display = 'none';
+        Detector.addGetWebGLMessage();
+        if (window.stop)
+            window.stop();
+        else
+            document.execCommand("Stop");
+    }
+</script>
+
+<div id="glshow">
+    <script src="../../libs/three.js"></script>
+
+    <script src="../../libs/js/loaders/STLLoader.js"></script>
+    <script src="../../libs/js/loaders/OBJLoader.js"></script>
+
+    <script src="../../libs/js/Detector.js"></script>
+    <script src="../../libs/js/libs/stats.min.js"></script>
+
+    <script src="http://cdn.bootcss.com/dat-gui/0.5.1/dat.gui.js"></script>
+    <script src="http://cdn.bootcss.com/numeric/1.2.6/numeric.js"></script>
+    <script src="../../libs/js/controls/OrbitControls.js"></script>
+
+    <script src="../../libs/kdTree.js"></script>
+    <script src="STLViewer.js"></script>
+    </div>
+</body>
+</html>
