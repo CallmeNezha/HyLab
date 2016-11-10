@@ -14,7 +14,7 @@ var table;
 
 var gVar = {
     wireframe: false
-    ,
+    , Laplacian: Laplacian
 };
 
 /** begin main  */
@@ -32,6 +32,7 @@ function initGUI() {
     gui = new dat.GUI();
     var param = gui.addFolder( "Parameters" );
     param.add( gVar, 'wireframe' )
+    param.add( gVar, 'Laplacian' )
 
 }
 
@@ -41,8 +42,8 @@ function mergeVertices() {
     var unique = [], changes = [];
 
     var v, key;
-    var precisionPoints = 2; // number of decimal points, e.g. 4 for epsilon of 0.001
-    console.log("Truncates precision:  for epsilon of 0.001 ")
+    var precisionPoints = 1; // number of decimal points, e.g. 4 for epsilon of 0.001
+    console.log( "Truncates precision:  for epsilon of 0.001 " )
     var precision = Math.pow( 10, precisionPoints );
     var i, il, face;
     var indices, j, jl;
@@ -168,9 +169,10 @@ function extractOneMesh( mesh, facet ) {
 
         for ( var i = 0, end = border.length; i < end; ++i ) {
             meshFaces.delete( border[ i ] );
-            setMask( border[i] );
+            setMask( border[ i ] );
         }
     }
+    VisibleMesh.mergeVertices();
     VisibleMesh.computeFaceNormals();
     return VisibleMesh;
 }
@@ -236,14 +238,14 @@ function isolateMeshes( mesh ) {
 
 function loadTable() {
     var loader = new THREE.STLLoader();
-    loader.load( 'TestModels/mesh.stl', function ( geometry ) {
+    loader.load( 'TestModels/mesh_simple.stl', function ( geometry ) {
 
 
         var i, end, pos, newGeometry, indexVertex, numDeleted, rotator;
 
         pos = geometry.getAttribute( "position" );
 
-        console.log("Old mesh has " + pos.array.length + " vertices ");
+        console.log( "Old mesh has " + pos.array.length + " vertices " );
         newGeometry = new THREE.Geometry();
         rotator = new THREE.Euler( -Math.PI / 2, 0, 0, 'XYZ' );
 
@@ -260,7 +262,7 @@ function loadTable() {
             newGeometry.faces.push( new THREE.Face3( ++indexVertex, ++indexVertex, ++indexVertex ) );
         }
 
-        console.log("Old mesh has " + newGeometry.faces.length + " faces ");
+        console.log( "Old mesh has " + newGeometry.faces.length + " faces " );
 
 
         newGeometry.customMergeVertices = mergeVertices;
@@ -268,8 +270,8 @@ function loadTable() {
         numDeleted = newGeometry.customMergeVertices();
         console.log( numDeleted + " duplicate vertices deleted" );
 
-        console.log("New mesh has " + newGeometry.vertices.length + " vertices ");
-        console.log("New mesh has " + newGeometry.faces.length + " faces ");
+        console.log( "New mesh has " + newGeometry.vertices.length + " vertices " );
+        console.log( "New mesh has " + newGeometry.faces.length + " faces " );
 
         newGeometry.computeFaceNormals();
         newGeometry.computeVertexNormals( true );
@@ -298,7 +300,7 @@ function loadTable() {
 
         table = mesh;
 
-        document.getElementById("loading").style.display = 'none';
+        document.getElementById( "loading" ).style.display = 'none';
 
     } );
 
@@ -461,7 +463,6 @@ function init() {
     scene.add( helper );
 
 
-
 }
 
 function addShadowedLight( x, y, z, color, intensity ) {
@@ -507,7 +508,9 @@ function animate() {
 }
 
 function beforeRender() {
-    table.material.wireframe = gVar.wireframe;
+    if ( table ) {
+        table.material.wireframe = gVar.wireframe;
+    }
 }
 
 function render() {
@@ -515,6 +518,7 @@ function render() {
     var delta = clock.getDelta();
     orbitControl.update( delta );
     renderer.render( scene, camera );
+
 }
 
 
@@ -545,13 +549,67 @@ function onMouseLDClick( event ) {
     // End raycast
 
     var extractGeo = extractOneMesh( table, intersects[ 0 ].face );
-    var extractMesh = new THREE.Mesh( extractGeo, new THREE.MeshNormalMaterial());
-    extractMesh.material.wireframe = true;
+    var extractMesh = new THREE.Mesh( extractGeo, new THREE.MeshNormalMaterial() );
+    extractMesh.material.wireframe = false;
     scene.add( extractMesh );
 
-    console.log("Table mesh has " + extractMesh.geometry.vertices.length + " vertices ");
-    console.log("Table mesh has " + extractMesh.geometry.faces.length + " faces ");
+    console.log( "Table mesh has " + extractMesh.geometry.vertices.length + " vertices " );
+    console.log( "Table mesh has " + extractMesh.geometry.faces.length + " faces " );
 
     scene.remove( table );
+    table = extractMesh;
 
 }
+
+function Laplacian() {
+
+    var mesh = table;
+    var vertices = mesh.geometry.vertices;
+    var faces = mesh.geometry.faces;
+    var i, j, k, l;
+    var il, jl, kl, ll;
+
+    for ( i = 0, il = vertices.length; i < il; ++i ) {
+
+        var idxVertex = i;
+        var connectFaces = [];
+        var connectVertices = [];
+
+        for ( j = 0, jl = faces.length; j < jl; ++j ) {
+            var face = faces[ j ];
+            var connect = idxVertex === face.a || idxVertex === face.b || idxVertex === face.c;
+            if ( connect ) {
+                connectFaces.push( face );
+            }
+        }
+
+        if ( 1 < connectFaces.length ) {
+
+            for ( k = 0, kl = connectFaces.length; k < kl; ++i ) {
+
+                var face = connectFaces[ i ];
+                if ( face.a !== idxVertex ) connectVertices.push( vertices[ face.a ] );
+                if ( face.b !== idxVertex ) connectVertices.push( vertices[ face.b ] );
+                if ( face.c !== idxVertex ) connectVertices.push( vertices[ face.c ] );
+
+            }
+
+            var center = new THREE.Vector3( 0, 0, 0 );
+            center.copy( connectVertices[ idxVertex ] );
+            for ( l = 0, ll = connectVertices.length; l < ll; ++i ) {
+
+                center.add( connectVertices[ i ] );
+
+            }
+
+            center.divideScalar( connectVertices.length );
+
+            vertices[ idxVertex ].copy( center );
+
+        }
+
+
+    }
+
+}
+
