@@ -6,34 +6,38 @@
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <style>
         body {
-            font-family: Monospace;
-            background-color: #000000;
+            color: #fff;
+            font-family:Monospace;
+            font-size:13px;
+            text-align:center;
+            font-weight: bold;
+            background-color: #000;
             margin: 0px;
+            padding: 0px;
             overflow: hidden;
         }
-
         #info {
-            color: #fff;
-            position: absolute;
-            top: 10px;
-            width: 100%;
+            font-size: 150%;
+            color: skyblue;
+            position: fixed;
+            float: inherit;
+            top: 0px;
+            width: 70%;
             text-align: center;
             z-index: 100;
-            display:block;
-
         }
-
-        a { color: skyblue }
-        .button { background:#999; color:#eee; padding:0.2em 0.5em; cursor:pointer }
-        .highlight { background:orange; color:#fff; }
-
-        span {
-            display: inline-block;
-            width: 60px;
-            float: left;
+        a { color: mediumpurple; }
+        #stats-output { position: absolute; top:0; left: 0;}
+        #loading {
+            background: orange;
+            color: white;
+            position: absolute;
             text-align: center;
+            width: 100%;
+            font-size: 170%;
+            display: block;
+            z-index: 200;
         }
-
     </style>
 </head>
 <body>
@@ -41,9 +45,9 @@
     <p><a href="">NeZha's web</a>
     </p>
 </div>
+<div id="loading">Loading... please wait...</div>
 <div id="stats-output"></div>
 <div id="webgl-output"></div>
-<div id="loading">Loading... please wait...</div>
 
 <script style="text/javascript" src="../../libs/js/Detector.js"></script>
 <script>

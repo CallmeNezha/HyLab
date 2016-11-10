@@ -6,20 +6,34 @@
 
 var container, stats;
 
-var camera, cameraTarget, scene, renderer, orbitControl, clock, raycaster, mouse, helper;
+var camera, cameraTarget, scene, renderer, orbitControl, clock, raycaster, mouse, helper, gui;
 
 var refOffset = 1.8;
 
 var table;
 
+var gVar = {
+    wireframe: false
+    ,
+};
+
 /** begin main  */
 
-init()
-loadTable();
+init();
+initGUI();
+loadTable()
 animate();
 
 /** end main  */
 
+
+function initGUI() {
+
+    gui = new dat.GUI();
+    var param = gui.addFolder( "Parameters" );
+    param.add( gVar, 'wireframe' )
+
+}
 
 function mergeVertices() {
 
@@ -27,7 +41,8 @@ function mergeVertices() {
     var unique = [], changes = [];
 
     var v, key;
-    var precisionPoints = 2; // number of decimal points, e.g. 4 for epsilon of 0.01
+    var precisionPoints = 2; // number of decimal points, e.g. 4 for epsilon of 0.001
+    console.log("Truncates precision:  for epsilon of 0.001 ")
     var precision = Math.pow( 10, precisionPoints );
     var i, il, face;
     var indices, j, jl;
@@ -113,7 +128,6 @@ function extractOneMesh( mesh, facet ) {
 
 
     var seedMesh = [];
-    var meshes = [];
     var border = [];
     var vertexIdMask = [];
 
@@ -142,22 +156,23 @@ function extractOneMesh( mesh, facet ) {
                 seedMesh.push( face );
 
                 VisibleMesh.vertices.push(
-                    (new THREE.Vector3()).copy( mesh.geometry.vertices[face.a])
-                    , (new THREE.Vector3()).copy( mesh.geometry.vertices[face.b])
-                    , (new THREE.Vector3()).copy( mesh.geometry.vertices[face.c])
+                    (new THREE.Vector3()).copy( mesh.geometry.vertices[ face.a ] )
+                    , (new THREE.Vector3()).copy( mesh.geometry.vertices[ face.b ] )
+                    , (new THREE.Vector3()).copy( mesh.geometry.vertices[ face.c ] )
                 );
-                var indexOffset = VisibleMesh.vertices.length*3;
-                VisibleMesh.faces.push( new THREE.Face3(indexOffset, indexOffset +1, indexOffset+2) );
+                var indexOffset = VisibleMesh.vertices.length - 3;
+                VisibleMesh.faces.push( new THREE.Face3( indexOffset, indexOffset + 1, indexOffset + 2 ) );
                 border.push( face );
             }
         }
 
         for ( var i = 0, end = border.length; i < end; ++i ) {
             meshFaces.delete( border[ i ] );
+            setMask( border[i] );
         }
     }
+    VisibleMesh.computeFaceNormals();
     return VisibleMesh;
-    console.log( "isolated no." + ( meshes.length + 1 ) + " mesh, it has " + seedMesh.length + " faces" );
 }
 
 
@@ -223,28 +238,39 @@ function loadTable() {
     var loader = new THREE.STLLoader();
     loader.load( 'TestModels/mesh.stl', function ( geometry ) {
 
-        var i, end, pos, newGeometry, indexVertex, numDeleted;
+
+        var i, end, pos, newGeometry, indexVertex, numDeleted, rotator;
 
         pos = geometry.getAttribute( "position" );
+
+        console.log("Old mesh has " + pos.array.length + " vertices ");
         newGeometry = new THREE.Geometry();
+        rotator = new THREE.Euler( -Math.PI / 2, 0, 0, 'XYZ' );
 
         indexVertex = -1;
 
         for ( i = 0, end = pos.array.length; i < end; i += 9 ) {
 
             newGeometry.vertices.push(
-                new THREE.Vector3( pos.array[ i ], pos.array[ i + 1 ], pos.array[ i + 2 ] )
-                , new THREE.Vector3( pos.array[ i + 3 ], pos.array[ i + 4 ], pos.array[ i + 5 ] )
-                , new THREE.Vector3( pos.array[ i + 6 ], pos.array[ i + 7 ], pos.array[ i + 8 ] )
+                (new THREE.Vector3( pos.array[ i ], pos.array[ i + 1 ], pos.array[ i + 2 ] )).applyEuler( rotator )
+                , (new THREE.Vector3( pos.array[ i + 3 ], pos.array[ i + 4 ], pos.array[ i + 5 ] )).applyEuler( rotator )
+                , (new THREE.Vector3( pos.array[ i + 6 ], pos.array[ i + 7 ], pos.array[ i + 8 ] )).applyEuler( rotator )
             );
 
             newGeometry.faces.push( new THREE.Face3( ++indexVertex, ++indexVertex, ++indexVertex ) );
         }
 
+        console.log("Old mesh has " + newGeometry.faces.length + " faces ");
+
+
         newGeometry.customMergeVertices = mergeVertices;
 
         numDeleted = newGeometry.customMergeVertices();
         console.log( numDeleted + " duplicate vertices deleted" );
+
+        console.log("New mesh has " + newGeometry.vertices.length + " vertices ");
+        console.log("New mesh has " + newGeometry.faces.length + " faces ");
+
         newGeometry.computeFaceNormals();
         newGeometry.computeVertexNormals( true );
 
@@ -257,7 +283,7 @@ function loadTable() {
         var mesh = new THREE.Mesh( newGeometry, material );
 
         //TODO: Test isolating meshes
-       // var meshes = isolateMeshes( mesh );
+        // var meshes = isolateMeshes( mesh );
 
         //meshes.sort( ( a, b ) => a.length - b.length );
 
@@ -271,6 +297,8 @@ function loadTable() {
         scene.add( mesh );
 
         table = mesh;
+
+        document.getElementById("loading").style.display = 'none';
 
     } );
 
@@ -432,6 +460,8 @@ function init() {
     helper = new THREE.Mesh( geometry, new THREE.MeshNormalMaterial() );
     scene.add( helper );
 
+
+
 }
 
 function addShadowedLight( x, y, z, color, intensity ) {
@@ -470,10 +500,14 @@ function animate() {
 
     requestAnimationFrame( animate );
 
-
+    beforeRender();
     render();
     stats.update();
 
+}
+
+function beforeRender() {
+    table.material.wireframe = gVar.wireframe;
 }
 
 function render() {
@@ -492,7 +526,7 @@ function onMouseLDClick( event ) {
 
     // Begin raycast
     mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
-    mouse.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
+    mouse.y = -( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
     raycaster.setFromCamera( mouse, camera );
 
     // See if the ray from the camera into the world hits one of our meshes
@@ -511,14 +545,13 @@ function onMouseLDClick( event ) {
     // End raycast
 
     var extractGeo = extractOneMesh( table, intersects[ 0 ].face );
+    var extractMesh = new THREE.Mesh( extractGeo, new THREE.MeshNormalMaterial());
+    extractMesh.material.wireframe = true;
+    scene.add( extractMesh );
 
+    console.log("Table mesh has " + extractMesh.geometry.vertices.length + " vertices ");
+    console.log("Table mesh has " + extractMesh.geometry.faces.length + " faces ");
 
-    for (var i in extractGeo.vertices ) {
-        var geometry = new THREE.SphereGeometry( 0.01, 32, 32 );
-        var material = new THREE.MeshNormalMaterial();
-        var sphere = new THREE.Mesh( geometry, material );
-        sphere.position.copy(extractGeo.vertices[i]);
-        scene.add( sphere );
-        sphere.rotation.set( -Math.PI / 2, 0, 0 );
-    }
+    scene.remove( table );
+
 }
